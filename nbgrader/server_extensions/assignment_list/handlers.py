@@ -245,7 +245,12 @@ class AssignmentList(LoggingConfigurable):
                 config = self.load_config()
                 config.CourseDirectory.course_id = course_id
                 config.CourseDirectory.assignment_id = assignment_id
-
+                return {
+                    "success": False,
+                    "value": {
+                        1:course_id, 2:assignment_id
+                    }
+                }
                 coursedir = CourseDirectory(config=config)
                 authenticator = Authenticator(config=config)
                 submit = ExchangeFactory(config=config).Submit(
