@@ -434,7 +434,7 @@ define([
             });
 
         } else if (this.data.status == 'fetched') {
-            button.text("Submitjay");
+            button.text("Submitjayk");
             cconsole.log("okkookokokokokokok111")
             button.click(function (e) {
                 alert(111)
