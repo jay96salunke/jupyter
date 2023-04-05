@@ -175,6 +175,17 @@ class CourseDirectory(LoggingConfigurable):
         )
     ).tag(config=True)
 
+    solution_directory = Unicode(
+        'solution',
+        help=dedent(
+            """
+            The name of the directory that contains the assignment solution after
+            grading has been completed. This corresponds to the `nbgrader_step`
+            variable in the `directory_structure` config option.
+            """
+        )
+    ).tag(config=True)
+
     db_url = Unicode(
         "",
         help=dedent(
@@ -276,9 +287,12 @@ class CourseDirectory(LoggingConfigurable):
         )
 
         if escape:
-            base = re.escape(self.root)
             structure = [x.format(**kwargs) for x in full_split(self.directory_structure)]
-            path = re.escape(os.path.sep).join([base] + structure)
+            if len(structure) == 0 or not structure[0].startswith(os.sep):
+                base = [re.escape(self.root)]
+            else:
+                base = []
+            path = re.escape(os.path.sep).join(base + structure)
         else:
             path = os.path.join(self.root, self.directory_structure.format(**kwargs))
 

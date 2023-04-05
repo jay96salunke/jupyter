@@ -434,11 +434,9 @@ define([
             });
 
         } else if (this.data.status == 'fetched') {
-            button.text("Submitjayk");
-            cconsole.log("okkookokokokokokok111")
+            button.text("Submit Jay");
+            console.log("before submit data",this.data, that.data)
             button.click(function (e) {
-                alert(111)
-                cconsole.log("okkookokokokokokok222", that.data)
                 var settings = {
                     cache : false,
                     data : {
@@ -448,12 +446,12 @@ define([
                     type : "POST",
                     dataType : "json",
                     success : function (data, status, xhr) {
-                        cconsole.log("okkookokokokokokok333", data)
                         if (!data.success) {
                             that.submit_error(data);
-                            button.text('Submitjk');
+                            button.text('Submit');
                             button.removeAttr('disabled');
                         } else {
+                            console.log("after submit data ",data)
                             that.on_refresh(data, status, xhr);
                         }
                     },
@@ -499,7 +497,7 @@ define([
                 ajax(url, settings);
             });
         }
-        console.log("finish")
+
         return container;
     };
 

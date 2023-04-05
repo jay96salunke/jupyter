@@ -17,6 +17,7 @@ class ClearSolutions(NbGraderPreprocessor):
         dict(python="# YOUR CODE HERE\nraise NotImplementedError()",
              matlab="% YOUR CODE HERE\nerror('No Answer Given!')",
              octave="% YOUR CODE HERE\nerror('No Answer Given!')",
+             sas="/* YOUR CODE HERE */\n %notImplemented;",
              java="// YOUR CODE HERE"),
         help="The code snippet that will replace code solutions"
     ).tag(config=True)
@@ -97,6 +98,7 @@ class ClearSolutions(NbGraderPreprocessor):
                 # check to make sure this isn't a nested BEGIN
                 # SOLUTION region
                 if in_solution:
+                    self.log.error("Encountered nested begin solution statements. Cell contents are: \n%s", cell.source)
                     raise RuntimeError(
                         "encountered nested begin solution statements")
 
@@ -119,6 +121,7 @@ class ClearSolutions(NbGraderPreprocessor):
         # we finished going through all the lines, but didn't find a
         # matching END SOLUTION statment
         if in_solution:
+            self.log.error("No end solution statement found. Cell contents are: \n%s", cell.source)
             raise RuntimeError("no end solution statement found")
 
         # replace the cell source
@@ -145,6 +148,7 @@ class ClearSolutions(NbGraderPreprocessor):
                         cell_index: int
                         ) -> Tuple[NotebookNode, ResourcesDict]:
         # replace solution regions with the relevant stubs
+        orig_cell_source = cell.source
         language = resources["language"]
         replaced_solution = self._replace_solution_region(cell, language)
 
@@ -156,6 +160,10 @@ class ClearSolutions(NbGraderPreprocessor):
         # to be given an id
         if not is_solution and replaced_solution:
             if self.enforce_metadata:
+                self.log.error(
+                    "Solution region detected in a non-solution cell; please make sure "
+                    "all solution regions are within solution cells. Cell contents are: \n%s", orig_cell_source
+                )
                 raise RuntimeError(
                     "Solution region detected in a non-solution cell; please make sure "
                     "all solution regions are within solution cells."

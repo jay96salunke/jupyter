@@ -1,5 +1,5 @@
-from nbconvert.preprocessors import ExecutePreprocessor
-from traitlets import Bool, List, Integer
+from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
+from traitlets import Bool, List, Integer, validate, TraitError
 from textwrap import dedent
 
 from . import NbGraderPreprocessor
@@ -14,9 +14,39 @@ class UnresponsiveKernelError(Exception):
 
 class Execute(NbGraderPreprocessor, ExecutePreprocessor):
 
-    interrupt_on_timeout = Bool(True)
-    allow_errors = Bool(True)
-    raise_on_iopub_timeout = Bool(True)
+    timeout = Integer(
+        30,
+        help=ExecutePreprocessor.timeout.help,
+        allow_none=True,
+    ).tag(config=True)
+
+    interrupt_on_timeout = Bool(
+        True,
+        help=ExecutePreprocessor.interrupt_on_timeout.help
+    ).tag(config=True)
+
+    allow_errors = Bool(
+        True,
+        help=dedent(
+            """
+            When a cell execution results in an error, continue executing the rest of
+            the notebook. If False, the thrown nbclient exception would break aspects of
+            output rendering.
+            """
+        ),
+    )
+
+    raise_on_iopub_timeout = Bool(
+        True,
+        help=ExecutePreprocessor.raise_on_iopub_timeout.help
+    ).tag(config=True)
+
+    error_on_timeout = {
+        "ename": "CellTimeoutError",
+        "evalue": "",
+        "traceback": ["ERROR: No reply from kernel"]
+    }
+
     extra_arguments = List([], help=dedent(
         """
         A list of extra arguments to pass to the kernel. For python kernels,
@@ -33,25 +63,23 @@ class Execute(NbGraderPreprocessor, ExecutePreprocessor):
         """)
     ).tag(config=True)
 
-    def preprocess(self,
-                   nb: NotebookNode,
-                   resources: ResourcesDict,
-                   retries: Optional[Any] = None
-                   ) -> Tuple[NotebookNode, ResourcesDict]:
-        kernel_name = nb.metadata.get('kernelspec', {}).get('name', 'python')
-        if self.extra_arguments == [] and kernel_name == "python":
-            self.extra_arguments = ["--HistoryManager.hist_file=:memory:"]
-
-        if retries is None:
-            retries = self.execute_retries
-
-        try:
-            output = super(Execute, self).preprocess(nb, resources)
-        except RuntimeError:
-            if retries == 0:
-                raise UnresponsiveKernelError()
-            else:
-                self.log.warning("Failed to execute notebook, trying again...")
-                return self.preprocess(nb, resources, retries=retries - 1)
-
-        return output
+    def on_cell_executed(self, **kwargs):
+        cell = kwargs['cell']
+        reply = kwargs['execute_reply']
+        if reply['content']['status'] == 'error':
+            error_recorded = False
+            for output in cell.outputs:
+                if output.output_type == 'error':
+                    error_recorded = True
+            if not error_recorded:
+                # Occurs when
+                # IPython.core.interactiveshell.InteractiveShell.showtraceback
+                # = lambda *args, **kwargs : None
+                error_output = NotebookNode(output_type='error')
+                error_output.ename = reply['content']['ename']
+                error_output.evalue = reply['content']['evalue']
+                error_output.traceback = reply['content']['traceback']
+                if error_output.traceback == []:
+                    error_output.traceback = ["ERROR: An error occurred while"
+                                                " showtraceback was disabled"]
+                cell.outputs.append(error_output)
